@@ -10,7 +10,7 @@ LEFT  = 1
 screen = pygame.display.set_mode((myscreen.width, myscreen.height),pygame.DOUBLEBUF)
 pygame.display.set_caption('Tower Defence')
 
-
+#adding a comment to check git commit
 running = True
 enemies = []   
 

@@ -98,24 +98,15 @@ class Enemy:
         new_rV = Vector(0.0, 0.0)
         new_rV.from_cartesian_from_screen(position[0],position[1])
         new_uV = Vector(2, 0.0) # 2 m/s
+        
         self.r_and_u = PhysicsObject(new_rV, new_uV)
-                
-        # self.x = position[0]
-        # self.y = position[1]
-        # self.speed = 70
-
         self.radius = 0.3125
-        # self.colour =  [(249,152,152), (255,132,132), (240,128,128), (216,65,65), (189,41,41), (154,31,31)]
-        # self.colour =  [(154, 227, 198), (125, 209, 176), (103, 185, 191), (64, 161, 207), (54, 130, 201), (54, 103, 201),
-        # (54, 72, 201), (70, 36, 209), (58, 31, 166), (36, 3, 168), (24, 0, 120)]
-        # self.colour =  [ (247, 178, 211), (245, 140, 190), (237, 133, 183), (222, 102, 160), (230, 69, 146), 
-        # (224, 49, 135),(196, 65, 129), (189, 15, 99), (166, 38, 100),  (150, 12, 79), (120, 1, 59)]
+        
         self.colour =  [  (255, 214, 214), (240, 175, 175), (255, 184, 184), 
         (255, 138, 138),(255, 84, 84), (222, 73, 73), (255, 54, 54),  (219, 9, 9), (194, 31, 31), (163, 7, 7)]
         
         self.thickness = 5
         
-        #self.angle = math.pi / 2
         self.p = -1
         self.health = 9 # if changed then the colour list must be extended as well
         
@@ -126,11 +117,7 @@ class Enemy:
         to_sc = scr_attributes.factor_to_screen
         pygame.draw.circle(screen, self.colour[self.health], (int(x), int(y)), int(self.radius*to_sc), self.thickness)
         # pygame.draw.circle(screen, self.colour, (int(x), int(y)), int(self.radius*to_sc), self.thickness)
-
-    def display1(self, screen):
-        pygame.draw.circle(screen, self.colour[self.health], (int(self.x), int(self.y)), self.radius, self.thickness)
-        
-    
+       
    
     def route(self):
         scr_attributes = Screen_attridutes()
@@ -187,57 +174,8 @@ class Enemy:
             if count_inner_set ==4:
                 count_inner_set =0
             offset = check         
-       
     
-   
-    def route1(self):     
-        myscreen = Screen_attridutes()
-        p = self.p
-        dy= myscreen.dy_in_route  
-        enemy_size_offset = self.radius / myscreen.factor_to_screen 
-
-        if p<0 :
-            return (0, 0)
-
-        count_inner_set =0
-        offset=0
-        offset_standard = myscreen.width_meters #screenX_metres
-        previous_height = -dy
-        new_x_metres=0.0
-        new_y_metres=0.0
-        for check in myscreen.check_points:            
-            if( check - offset == offset_standard): #left or right
-                previous_height += dy
-            # print("p= {}, check={}, offset={}, previous_height={}, count_inner_set={}"
-            # .format(p, check, offset, previous_height, count_inner_set))
-            if (p>=offset and p<check):
-                #print("p>offset and p<check")
-                if count_inner_set ==0: #going right(->) -.
-                    new_x_metres = p-offset
-                    new_y_metres = previous_height
-                    if new_y_metres == 0:
-                        new_y_metres +=enemy_size_offset
-                    elif new_y_metres == myscreen.height_meters:
-                        new_y_metres -=enemy_size_offset 
-                elif count_inner_set ==1: #going down from right(|) |.
-                    new_x_metres = offset_standard - enemy_size_offset
-                    new_y_metres = previous_height + (p - offset)
-                elif count_inner_set ==2: #going left(<-) .-
-                    new_x_metres = offset_standard - (p-offset)
-                    new_y_metres = previous_height               
-                elif count_inner_set ==3: #going down from left(|) .|
-                    new_x_metres = 0 + enemy_size_offset
-                    new_y_metres = previous_height + (p - offset)
-                   
-                print("route 1: <{},{}>".format(new_x_metres, new_y_metres))
-                self.to_screen(new_x_metres, new_y_metres,myscreen.factor_to_screen)
-                                            
-            count_inner_set +=1
-            if count_inner_set ==4:
-                count_inner_set =0
-            offset = check         
- 
-
+  
     def to_screen(self, x, y, factor_to_screen):
         self.x = factor_to_screen*x
         self.y = factor_to_screen*y
@@ -266,6 +204,52 @@ class Enemy:
 
     def subtrack_health(self):
         self.health -= 1
+
+    def find_two_closest_bullets(self, t ):
+        d_close = 5
+        two_closest_bullets = [] # size 2, bullet-distance. Closest bullet is in [0], second closest in [1]
+        (xe, ye) = self.r_and_u.r.to_cartesian()
+
+        first_closest_bullet = None
+        fcb_d = 5.1
+        second_closest_bullet = None
+        scb_d = 5.1
+
+
+        for b in t.bullets:
+            (xb, yb) = b.r_and_u.r.to_cartesian()
+            d = math.sqrt( (xe-xb)**2 + (ye-yb)**2 )
+            # print("{}. enemy = [{}, {}] bullet= [{}, {}], distance={}".format(count, xe, ye, xb, yb, d))
+            
+            if (d <= d_close):
+                if (d < fcb_d):
+                    second_closest_bullet = first_closest_bullet
+                    scb_d = fcb_d
+                    first_closest_bullet = b
+                    fcb_d = d
+                    (xb, yb) = first_closest_bullet.r_and_u.r.to_cartesian()            
+                    # print("Firsrt bullet= [{}, {}], distance={}".format(xb, yb, fcb_d))
+                    if (second_closest_bullet is not None):
+                        (xb, yb) = second_closest_bullet.r_and_u.r.to_cartesian()            
+                        # print("second bullet= [{}, {}], distance={}".format(xb, yb, scb_d))
+
+                elif d < scb_d and d is not fcb_d:
+                    second_closest_bullet = b
+                    scb_d = d
+                    (xb, yb) = second_closest_bullet.r_and_u.r.to_cartesian()            
+                    # print("second bullet= [{}, {}], distance={}".format(xb, yb, scb_d))
+
+               
+        if (first_closest_bullet is not None):
+            two_closest_bullets.append(first_closest_bullet)             
+        if (second_closest_bullet is not None):
+            two_closest_bullets.append(second_closest_bullet)
+        
+        return two_closest_bullets
+        
+       
+
+
 
 class Screen_attridutes:
     def __init__(self):

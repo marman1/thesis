@@ -56,6 +56,7 @@ while running:
         enemies.append(entities.Enemy((0, 0)))
 
     new_enemies = []
+    two_closest_bullets = []
     for e in enemies:
         e.p += e.r_and_u.u.magnitude *dt
         if e.p > myscreen.MAX_DIST:
@@ -63,6 +64,9 @@ while running:
         else:
             new_enemies.append(e)        
             e.route( )#myscreen.check_points, myscreen.height_down, myscreen.width_meters, myscreen.height_meters, myscreen.factor_to_screen)
+            if(observer_tower_exists):
+                two_closest_bullets = e.find_two_closest_bullets(observer_tower)
+
             if random.random() < 0.05 and observer_tower_exists and len(observer_tower.bullets) <observer_tower.max_bullets:
                 observer_tower.make_bullet(e)
     enemies = new_enemies

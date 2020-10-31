@@ -192,16 +192,7 @@ class Enemy:
                 or math.sqrt( (ex - bx)**2 + (ey - (by + b.r_height))**2 ) < self.radius
                 or math.sqrt( (ex - (bx + b.r_width))**2 + (ey - by)**2 ) < self.radius
                 or math.sqrt( (ex - (bx + b.r_width))**2 + (ey - (by + b.r_height))**2 ) < self.radius )
-       
-        # #distance between center of enemy and bullet point left up
-        # #distance between center of enemy and bullet point left down
-        # #distance between center of enemy and bullet point right up
-        # #distance between center of enemy and bullet point right down
-        # return (math.sqrt( (self.x - b.x)**2 + (self.y - b.y)**2 ) < self.radius 
-        #         or math.sqrt( (self.x - b.x)**2 + (self.y - (b.y + b.r_height))**2 ) < self.radius
-        #         or math.sqrt( (self.x - (b.x + b.r_width))**2 + (self.y - b.y)**2 ) < self.radius
-        #         or math.sqrt( (self.x - (b.x + b.r_width))**2 + (self.y - (b.y + b.r_height))**2 ) < self.radius )
-
+     
     def subtrack_health(self):
         self.health -= 1
 
@@ -214,31 +205,27 @@ class Enemy:
         fcb_d = 5.1
         second_closest_bullet = None
         scb_d = 5.1
-
-
         for b in t.bullets:
             (xb, yb) = b.r_and_u.r.to_cartesian()
             d = math.sqrt( (xe-xb)**2 + (ye-yb)**2 )
             # print("{}. enemy = [{}, {}] bullet= [{}, {}], distance={}".format(count, xe, ye, xb, yb, d))
-            
             if (d <= d_close):
                 if (d < fcb_d):
                     second_closest_bullet = first_closest_bullet
                     scb_d = fcb_d
                     first_closest_bullet = b
                     fcb_d = d
-                    (xb, yb) = first_closest_bullet.r_and_u.r.to_cartesian()            
+                    # (xb, yb) = first_closest_bullet.r_and_u.r.to_cartesian()            
                     # print("Firsrt bullet= [{}, {}], distance={}".format(xb, yb, fcb_d))
-                    if (second_closest_bullet is not None):
-                        (xb, yb) = second_closest_bullet.r_and_u.r.to_cartesian()            
+                    # if (second_closest_bullet is not None):
+                    #     (xb, yb) = second_closest_bullet.r_and_u.r.to_cartesian()            
                         # print("second bullet= [{}, {}], distance={}".format(xb, yb, scb_d))
 
                 elif d < scb_d and d is not fcb_d:
                     second_closest_bullet = b
                     scb_d = d
-                    (xb, yb) = second_closest_bullet.r_and_u.r.to_cartesian()            
+                    # (xb, yb) = second_closest_bullet.r_and_u.r.to_cartesian()            
                     # print("second bullet= [{}, {}], distance={}".format(xb, yb, scb_d))
-
                
         if (first_closest_bullet is not None):
             two_closest_bullets.append(first_closest_bullet)             

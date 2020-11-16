@@ -30,7 +30,7 @@ num_inputs = 1 + (2 + 2) + (2 + 2)
 # 0 : going forward
 # 1 : going backwards
 num_actions = 2 
-num_hidden = 32
+num_hidden = 16
 
 inputs = layers.Input(shape=(num_inputs,))
 common = layers.Dense(num_hidden, activation="relu")(inputs)
@@ -44,7 +44,7 @@ model = keras.Model(inputs=inputs, outputs=[action, critic])
 class eBrain:
     def __init__(self, enemy,trainable ):
         self.optimizer = keras.optimizers.Adam(learning_rate=0.01)
-        self.huber_loss = keras.losses.Huber()
+        self.huber_loss = keras.losses.MeanSquaredError()
         self.action_probs_history = []
         self.critic_value_history = []
         self.rewards_history = []
@@ -83,6 +83,7 @@ class eBrain:
             self.critic_value_history.append(critic_value[0, 0])
 
         # Sample action from action probability distribution
+        print (action_probs)
         action = np.random.choice(num_actions, p=np.squeeze(action_probs))
         if self.trainable:
             self.action_probs_history.append(tf.math.log(action_probs[0, action]))
@@ -219,8 +220,8 @@ stopwatch_timer_bullet = 0
 max_enemies = 1
 
 reward_reach_the_castle = 100
-reward_moving_forward = 2
-reward_moving_backwards = 0
+reward_moving_forward = 10
+reward_moving_backwards = -20
 penalty_hit = -50
 penalty_death = -50
 
@@ -239,7 +240,6 @@ while running:
     with tf.GradientTape() as tape:
             # env.render(); Adding this line would show the attempts
             # of the agent in a pop up window.
-            episodes_count += 1
 
             dt=clock.tick(FRAMES_PER_SECOND)/1000.0 # number of seconds have passed since the previous call.
             stopwatch_timer += dt
@@ -334,14 +334,17 @@ while running:
             #print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
 
             steps_count +=1
-            if steps_count == max_steps_per_episode:                
-                steps_count = 0
+            if steps_count == max_steps_per_episode:    
                 for ed in smart_enemies:
                     if ed.trainable:
-                        ed.learn(episode_reward)
+                        ed.learn(episode_reward)                
                 
-                episode_reward = 0
                 print("Episode {} ENDED: episode_reward= {}, steps_count = {}".format(episodes_count, episode_reward, steps_count))
+                episode_reward = 0            
+                steps_count = 0
+                episodes_count += 1
+
+
             for ed in smart_enemies:
                     if ed.trainable:
                         ed.step_reward = 0

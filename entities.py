@@ -81,7 +81,12 @@ class PhysicsObject:
         
         self.u.from_cartesian(ux, uy)
         self.r.from_cartesian(x, y)
-    
+
+    def to_state_vector(self):
+        r = list(self.r.to_cartesian())
+        u = list(self.u.to_cartesian())
+        return r + u
+        
     def __str__(self):
         return "[r = {}, u={}]".format(self.r, self.u)
 
@@ -524,6 +529,9 @@ class Bullet:
         # print("MOVE bullet x= {}, y = {}".format(x,y))
         
 
+    def to_state_vector(self):
+        return self.r_and_u.to_state_vector()
+        
     def is_in_screen (self):
         #upper screen limit
         scr_attributes = Screen_attridutes()

@@ -93,7 +93,7 @@ class eBrain:
     def learn(self, episode_reward):
         if not self.trainable:
             return
-        print("learn CALLED")
+        # print("learn CALLED")
         # Update running reward to check condition for solving
         self.running_reward = 0.05 * episode_reward + (1 - 0.05) * self.running_reward
 
@@ -134,7 +134,7 @@ class eBrain:
         # Backpropagation
         loss_value = sum(actor_losses) + sum(critic_losses)
         grads = tape.gradient(loss_value, model.trainable_variables)
-        print (grads)
+        # print (grads)
         self.optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
         # Clear the loss and reward history
@@ -159,7 +159,7 @@ def append_enemies (smart_enemies, trainable_enemy_exists):
             trainable = True
             
         
-        print("ADD NEW ENEMY trainable_enemy_exists= {}".format(trainable_enemy_exists))
+        # print("ADD NEW ENEMY trainable_enemy_exists= {}".format(trainable_enemy_exists))
         smart_enemies.append( eBrain(e,trainable) )
     return trainable or trainable_enemy_exists
         
@@ -185,10 +185,10 @@ def active_bullets_after_collision_checks (tower, smart_enemies, episode_reward,
                 if (e.health<0):
                     if eb.trainable:                          
                         eb.step_reward += penalty_death
-                        
+
                         ed.rewards_history.append(ed.step_reward)
                         episode_reward += ed.step_reward
-                        print("learn CALLING")
+                        # print("learn CALLING")
                         eb.learn(episode_reward)
                         trainable_enemy_exists = False 
                         episode_reward = 0
@@ -219,10 +219,10 @@ stopwatch_timer_bullet = 0
 max_enemies = 1
 
 reward_reach_the_castle = 100
-reward_moving_forward = 0.1
+reward_moving_forward = 2
 reward_moving_backwards = 0
 penalty_hit = -50
-penalty_death = -10
+penalty_death = -50
 
 observer_towers = []
 user_towers = []
@@ -232,13 +232,15 @@ trainable_enemy_exists = False
 
 episode_reward = 0
 steps_count  = 0
+episodes_count = 0
 
 while running:  
     
     with tf.GradientTape() as tape:
             # env.render(); Adding this line would show the attempts
             # of the agent in a pop up window.
-            
+            episodes_count += 1
+
             dt=clock.tick(FRAMES_PER_SECOND)/1000.0 # number of seconds have passed since the previous call.
             stopwatch_timer += dt
             stopwatch_timer_bullet += dt
@@ -287,7 +289,7 @@ while running:
                 action = eb.take_an_action(tc_bullets)
 
                 e.p += ((-1)** action) * e.r_and_u.u.magnitude *dt
-                print("action= {}, p = {}".format(action, e.p))
+                # print("action= {}, p = {}".format(action, e.p))
 
                 if e.p >= myscreen.MAX_DIST:
                     eb.step_reward += reward_reach_the_castle                    
@@ -303,7 +305,7 @@ while running:
                     else:
                         eb.step_reward += reward_moving_backwards
 
-                    print("1. reward = {}".format(eb.step_reward))
+                    # print("1. reward = {}".format(eb.step_reward))
                     for ot in observer_towers:
                         two_closest_bullets = e.find_two_closest_bullets(ot)
                         if random.random() < 0.05 and len(ot.bullets) <ot.max_bullets and stopwatch_timer_bullet >= stopwatcht_at_bullet:
@@ -325,8 +327,8 @@ while running:
                 # print("2. end step trainable = {}".format(ed.trainable))
                 if ed.trainable:
                     ed.rewards_history.append(ed.step_reward)
-                    episode_reward += ed.step_reward
-                    print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
+                    episode_reward = episode_reward + ed.step_reward
+                    # print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
                     
             
             #print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
@@ -337,11 +339,12 @@ while running:
                 for ed in smart_enemies:
                     if ed.trainable:
                         ed.learn(episode_reward)
-                        ed.step_reward = 0
                 
                 episode_reward = 0
-                print("Episode ENDED: episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
-            
+                print("Episode {} ENDED: episode_reward= {}, steps_count = {}".format(episodes_count, episode_reward, steps_count))
+            for ed in smart_enemies:
+                    if ed.trainable:
+                        ed.step_reward = 0
             
 
                 

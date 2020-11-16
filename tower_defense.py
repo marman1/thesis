@@ -21,7 +21,7 @@ pygame.display.set_caption('Tower Defence')
 #A2C: setting up the nn networks and parametres
 random.seed(42)
 gamma = 0.99  # Discount factor for past rewards
-max_steps_per_episode = 100
+max_steps_per_episode = 200
 eps = np.finfo(np.float32).eps.item()  # Smallest number such that 1.0 + eps != 1.0
 
 # actor critic network 
@@ -33,9 +33,10 @@ num_actions = 2
 num_hidden = 32
 
 inputs = layers.Input(shape=(num_inputs,))
-common = layers.Dense(num_hidden, activation="relu")(inputs)
-action = layers.Dense(num_actions, activation="softmax")(common)
-critic = layers.Dense(1)(common)
+common1 = layers.Dense(num_hidden, activation="relu")(inputs)
+#common2 = layers.Dense(num_hidden, activation="relu")(common1)
+action = layers.Dense(num_actions, activation="softmax")(common1)
+critic = layers.Dense(1)(common1)
 
 model = keras.Model(inputs=inputs, outputs=[action, critic])
 ###############################################
@@ -44,7 +45,8 @@ model = keras.Model(inputs=inputs, outputs=[action, critic])
 class eBrain:
     def __init__(self, enemy,trainable ):
         self.optimizer = keras.optimizers.Adam(learning_rate=0.01)
-        self.huber_loss = keras.losses.Huber()
+        # self.huber_loss = keras.losses.Huber()
+        self.huber_loss = keras.losses.MeanSquaredError()
         self.action_probs_history = []
         self.critic_value_history = []
         self.rewards_history = []
@@ -58,10 +60,16 @@ class eBrain:
     def take_an_action (self, tc_bullets):
 
          # SLOPPY (start)
+         
+        (x,y) =self.me_the_enemy.r_and_u.r.to_cartesian()
+
         bstates = []
         bcnt = 0
         for b in tc_bullets:
-            bstates = bstates + b.to_state_vector()
+            sv = b.to_state_vector()
+            # sv[0] = sv[0] - x
+            # sv[1] = sv[1] - y
+            bstates = bstates + sv
             bcnt = bcnt + 1
 
         while bcnt < 2:
@@ -69,8 +77,14 @@ class eBrain:
             bcnt = bcnt + 1
         # SLOPPY (end)
 
+        # bstates2 = list()
+        # for x in bstates:
+        #     bstates2.append(x / myscreen.width_meters)
+        
+   
         # reset the environment
-        state = [self.me_the_enemy.p] + bstates
+        #state = [self.me_the_enemy.p] + bstates
+        state =  [self.me_the_enemy.p] + bstates
         #print("STATE IS", state)
         
         state = tf.convert_to_tensor(state)
@@ -219,9 +233,9 @@ stopwatch_timer_bullet = 0
 max_enemies = 1
 
 reward_reach_the_castle = 100
-reward_moving_forward = 2
+reward_moving_forward = 10
 reward_moving_backwards = 0
-penalty_hit = -50
+penalty_hit = -5
 penalty_death = -50
 
 observer_towers = []
@@ -239,7 +253,6 @@ while running:
     with tf.GradientTape() as tape:
             # env.render(); Adding this line would show the attempts
             # of the agent in a pop up window.
-            episodes_count += 1
 
             dt=clock.tick(FRAMES_PER_SECOND)/1000.0 # number of seconds have passed since the previous call.
             stopwatch_timer += dt
@@ -283,8 +296,13 @@ while running:
                 e = eb.me_the_enemy
                 tc_bullets = []
                 #find needs modification to find closet bullets from all towers
+                all_bullets = []
                 for ot in observer_towers:
-                        tc_bullets = e.find_two_closest_bullets(ot)
+                    all_bullets = all_bullets + ot.bullets
+                for ut in user_towers:
+                    all_bullets = all_bullets + ut.bullets
+
+                tc_bullets = e.find_two_closest_bullets(all_bullets)
 
                 action = eb.take_an_action(tc_bullets)
 
@@ -307,7 +325,7 @@ while running:
 
                     # print("1. reward = {}".format(eb.step_reward))
                     for ot in observer_towers:
-                        two_closest_bullets = e.find_two_closest_bullets(ot)
+                        # two_closest_bullets = e.find_two_closest_bullets(ot)
                         if random.random() < 0.05 and len(ot.bullets) <ot.max_bullets and stopwatch_timer_bullet >= stopwatcht_at_bullet:
                             ot.make_bullet(e)
                             stopwatch_timer_bullet = 0
@@ -334,14 +352,15 @@ while running:
             #print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
 
             steps_count +=1
-            if steps_count == max_steps_per_episode:                
+            if steps_count == max_steps_per_episode:                 
+                episodes_count += 1               
                 steps_count = 0
                 for ed in smart_enemies:
                     if ed.trainable:
-                        ed.learn(episode_reward)
-                
-                episode_reward = 0
-                print("Episode {} ENDED: episode_reward= {}, steps_count = {}".format(episodes_count, episode_reward, steps_count))
+                        ed.learn(episode_reward)   
+                    print("Episode {} ENDED: episode_reward= {}, steps_count = {}".format(episodes_count, episode_reward, steps_count))
+                    episode_reward = 0
+            
             for ed in smart_enemies:
                     if ed.trainable:
                         ed.step_reward = 0

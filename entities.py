@@ -198,7 +198,7 @@ class Enemy:
     def subtrack_health(self):
         self.health -= 1
 
-    def find_two_closest_bullets(self, t ):
+    def find_two_closest_bullets(self, bullets ):
         d_close = 5
         two_closest_bullets = [] # size 2, bullet-distance. Closest bullet is in [0], second closest in [1]
         (xe, ye) = self.r_and_u.r.to_cartesian()
@@ -207,7 +207,7 @@ class Enemy:
         fcb_d = 5.1
         second_closest_bullet = None
         scb_d = 5.1
-        for b in t.bullets:
+        for b in bullets:
             (xb, yb) = b.r_and_u.r.to_cartesian()
             d = math.sqrt( (xe-xb)**2 + (ye-yb)**2 )
             # print("{}. enemy = [{}, {}] bullet= [{}, {}], distance={}".format(count, xe, ye, xb, yb, d))

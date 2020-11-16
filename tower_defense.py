@@ -141,12 +141,10 @@ class eBrain:
 
 
 
-trainable_enemy_exists = True
-
 def append_enemies (smart_enemies, trainable_enemy_exists):
     
     trainable = False
-    if random.random() < 0.05 and len(smart_enemies) < max_enemies:
+    if random.random() < 0.5 and len(smart_enemies) < max_enemies:
         e = entities.Enemy((0, 0))
 
         # first enemy is trainable or there is no trainable agent
@@ -215,6 +213,8 @@ observer_towers = []
 user_towers = []
 
 
+trainable_enemy_exists = False
+
 episode_reward = 0
 steps_count  = 0
 
@@ -224,7 +224,6 @@ while running:
             # env.render(); Adding this line would show the attempts
             # of the agent in a pop up window.
             
-            episode_reward = 0
             dt=clock.tick(FRAMES_PER_SECOND)/1000.0 # number of seconds have passed since the previous call.
             stopwatch_timer += dt
             stopwatch_timer_bullet += dt
@@ -238,7 +237,7 @@ while running:
                     if (myscreen.is_tower_possition_allowed_simple(observer_tower)):
                         observer_towers.append(observer_tower)
                     else:
-                        print("tower is not allowed at x= {}, y = {}".format(pos[0], pos[1]))
+                        # print("tower is not allowed at x= {}, y = {}".format(pos[0], pos[1]))
                         del observer_tower
                 elif event.type == pygame.MOUSEBUTTONUP and not user_towers:
                     pos = pygame.mouse.get_pos()
@@ -246,7 +245,7 @@ while running:
                     if (myscreen.is_tower_possition_allowed_simple(tower)):
                         user_towers.append(tower)
                     else:
-                        print("tower is not allowed at x= {}, y = {}".format(pos[0], pos[1]))
+                        # print("tower is not allowed at x= {}, y = {}".format(pos[0], pos[1]))
                         del tower
                 elif event.type == pygame.MOUSEBUTTONUP and  user_towers:
                     (x,y) = pygame.mouse.get_pos()
@@ -256,7 +255,7 @@ while running:
             if stopwatch_timer >= stopwatch_at:
                 trainable_enemy_exists = append_enemies(smart_enemies, trainable_enemy_exists)
                 
-                print("trainable_enemy_exists= {}".format(trainable_enemy_exists))
+                # print("trainable_enemy_exists= {}".format(trainable_enemy_exists))
                 stopwatch_timer = 0
 
             new_smart_enemies = []
@@ -271,7 +270,7 @@ while running:
                 action = eb.take_an_action(tc_bullets)
 
                 e.p += ((-1)** action) * e.r_and_u.u.magnitude *dt
-                print("action= {}, p = {}".format(action, e.p))
+                # print("action= {}, p = {}".format(action, e.p))
 
                 if e.p >= myscreen.MAX_DIST:
                     eb.step_reward += reward_reach_the_castle                    
@@ -287,7 +286,7 @@ while running:
                     else:
                         eb.step_reward += reward_moving_backwards
 
-                    print("reward = {}".format(eb.step_reward))
+                    # print("reward = {}".format(eb.step_reward))
                     for ot in observer_towers:
                         two_closest_bullets = e.find_two_closest_bullets(ot)
                         if random.random() < 0.05 and len(ot.bullets) <ot.max_bullets and stopwatch_timer_bullet >= stopwatcht_at_bullet:
@@ -306,22 +305,23 @@ while running:
                 trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ot
           
             for ed in smart_enemies:
+                #print("end step trainable = {}".format(ed.trainable))
                 if ed.trainable:
                     ed.rewards_history.append(ed.step_reward)
                     episode_reward += ed.step_reward
+                    #print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
                     
             
-            print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
+            #print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
 
             steps_count +=1
-            if steps_count == max_steps_per_episode:
-                
-                print("Episode ENDED: episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
+            if steps_count == max_steps_per_episode:                
                 steps_count = 0
                 episode_reward = 0
                 for ed in smart_enemies:
                     if ed.trainable:
                         ed.learn(episode_reward)
+                print("Episode ENDED: episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
             
             
 

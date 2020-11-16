@@ -180,10 +180,10 @@ def active_bullets_after_collision_checks (tower, smart_enemies):
             e = eb.me_the_enemy
             if e.is_hit(b) and not b in hit_bullets:
                 e.subtrack_health()
-                eb.step_reward += reward_hit
+                eb.step_reward += penalty_hit
                 if (e.health<0):
                     if eb.trainable:                          
-                        eb.step_reward += reward_death
+                        eb.step_reward += penalty_death
                         eb.learn(episode_reward)
                         trainable_enemy_exists = False 
                     smart_enemies.remove(eb)
@@ -328,7 +328,7 @@ while running:
                 for ed in smart_enemies:
                     if ed.trainable:
                         ed.learn(episode_reward)
-                        ed.running_reward = 0
+                        ed.step_reward = 0
                 print("Episode ENDED: episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
             
             

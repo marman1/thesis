@@ -93,7 +93,7 @@ class eBrain:
     def learn(self, episode_reward):
         if not self.trainable:
             return
-
+        print("learn CALLED")
         # Update running reward to check condition for solving
         self.running_reward = 0.05 * episode_reward + (1 - 0.05) * self.running_reward
 
@@ -163,9 +163,10 @@ def append_enemies (smart_enemies, trainable_enemy_exists):
         smart_enemies.append( eBrain(e,trainable) )
     return trainable or trainable_enemy_exists
         
+def __del__ (self):
+    pass
 
-
-def active_bullets_after_collision_checks (tower, smart_enemies):
+def active_bullets_after_collision_checks (tower, smart_enemies, episode_reward, steps_count):
     new_bullets = []
     hit_bullets = []
     for b in tower.bullets:
@@ -184,18 +185,25 @@ def active_bullets_after_collision_checks (tower, smart_enemies):
                 if (e.health<0):
                     if eb.trainable:                          
                         eb.step_reward += penalty_death
+                        
+                        ed.rewards_history.append(ed.step_reward)
+                        episode_reward += ed.step_reward
+                        print("learn CALLING")
                         eb.learn(episode_reward)
                         trainable_enemy_exists = False 
+                        episode_reward = 0
+                        steps_count = 0
+                        eb.trainable = False
                     smart_enemies.remove(eb)
-                    del eb
+                    #del eb
                 hit_bullets.append(b)
     
     for b in hit_bullets:
         if b in new_bullets:
             new_bullets.remove(b)
-            del b
+            #del b
 
-    return new_bullets, trainable_enemy_exists 
+    return new_bullets, trainable_enemy_exists , episode_reward, steps_count
 
 
 
@@ -211,7 +219,7 @@ stopwatch_timer_bullet = 0
 max_enemies = 1
 
 reward_reach_the_castle = 100
-reward_moving_forward = 10
+reward_moving_forward = 0.1
 reward_moving_backwards = 0
 penalty_hit = -50
 penalty_death = -10
@@ -245,7 +253,8 @@ while running:
                         observer_towers.append(observer_tower)
                     else:
                         # print("tower is not allowed at x= {}, y = {}".format(pos[0], pos[1]))
-                        del observer_tower
+                        #del observer_tower
+                        pass
                 elif event.type == pygame.MOUSEBUTTONUP and not user_towers:
                     pos = pygame.mouse.get_pos()
                     tower = entities.Tower(pos)
@@ -253,7 +262,8 @@ while running:
                         user_towers.append(tower)
                     else:
                         # print("tower is not allowed at x= {}, y = {}".format(pos[0], pos[1]))
-                        del tower
+                        #del tower
+                        pass
                 elif event.type == pygame.MOUSEBUTTONUP and  user_towers:
                     (x,y) = pygame.mouse.get_pos()
                     tower.make_bullet(x,y)
@@ -277,14 +287,14 @@ while running:
                 action = eb.take_an_action(tc_bullets)
 
                 e.p += ((-1)** action) * e.r_and_u.u.magnitude *dt
-                # print("action= {}, p = {}".format(action, e.p))
+                print("action= {}, p = {}".format(action, e.p))
 
                 if e.p >= myscreen.MAX_DIST:
                     eb.step_reward += reward_reach_the_castle                    
                     if eb.trainable: 
                         trainable_enemy_exists = False 
                         eb.learn(episode_reward)
-                    del eb
+                    #del eb
                 else:
                     new_smart_enemies.append(eb)        
                     e.route( )
@@ -305,10 +315,10 @@ while running:
             trainable_not_deleted_ut = True
             trainable_not_deleted_ot = True           
             for ut in user_towers:        
-                (ut.bullets, trainable_not_deleted_ut) = active_bullets_after_collision_checks (ut, smart_enemies)
+                (ut.bullets, trainable_not_deleted_ut, episode_reward, steps_count) = active_bullets_after_collision_checks (ut, smart_enemies, episode_reward, steps_count)
                 trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ut
             for ot in observer_towers:        
-                (ot.bullets, trainable_not_deleted_ot) = active_bullets_after_collision_checks (ot, smart_enemies)                
+                (ot.bullets, trainable_not_deleted_ot, episode_reward, steps_count) = active_bullets_after_collision_checks (ot, smart_enemies, episode_reward, steps_count)              
                 trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ot
           
             for ed in smart_enemies:
@@ -324,11 +334,12 @@ while running:
             steps_count +=1
             if steps_count == max_steps_per_episode:                
                 steps_count = 0
-                episode_reward = 0
                 for ed in smart_enemies:
                     if ed.trainable:
                         ed.learn(episode_reward)
                         ed.step_reward = 0
+                
+                episode_reward = 0
                 print("Episode ENDED: episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
             
             

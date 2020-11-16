@@ -25,7 +25,7 @@ max_steps_per_episode = 100
 eps = np.finfo(np.float32).eps.item()  # Smallest number such that 1.0 + eps != 1.0
 
 # actor critic network 
-num_inputs = 1
+num_inputs = 1 + (2 + 2) + (2 + 2)
 #going forward or backward in the path.
 # 0 : going forward
 # 1 : going backwards
@@ -40,10 +40,6 @@ critic = layers.Dense(1)(common)
 model = keras.Model(inputs=inputs, outputs=[action, critic])
 ###############################################
 
-class State:
-    def __init__(self, p, bullets_list):
-        self.path_distance = p
-        self.two_closest_bullets = bullets_list
 
 class eBrain:
     def __init__(self, enemy,trainable ):
@@ -61,9 +57,22 @@ class eBrain:
 
     def take_an_action (self, tc_bullets):
 
-        #state = [self.me_the_enemy.p, tc_bullets] #reset the environment
-        #state = State(self.me_the_enemy.p, tc_bullets)
-        state = self.me_the_enemy.p
+         # SLOPPY (start)
+        bstates = []
+        bcnt = 0
+        for b in tc_bullets:
+            bstates = bstates + b.to_state_vector()
+            bcnt = bcnt + 1
+
+        while bcnt < 2:
+            bstates = bstates + [0, 0, 0, 0]
+            bcnt = bcnt + 1
+        # SLOPPY (end)
+
+        # reset the environment
+        state = [self.me_the_enemy.p] + bstates
+        #print("STATE IS", state)
+        
         state = tf.convert_to_tensor(state)
         state = tf.expand_dims(state, 0)
 
@@ -79,9 +88,6 @@ class eBrain:
             self.action_probs_history.append(tf.math.log(action_probs[0, action]))
         
         return action
-
-    def __del__ (self):
-        pass
    
        
     def learn(self, episode_reward):
@@ -128,6 +134,7 @@ class eBrain:
         # Backpropagation
         loss_value = sum(actor_losses) + sum(critic_losses)
         grads = tape.gradient(loss_value, model.trainable_variables)
+        print (grads)
         self.optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
         # Clear the loss and reward history
@@ -206,8 +213,8 @@ max_enemies = 1
 reward_reach_the_castle = 100
 reward_moving_forward = 10
 reward_moving_backwards = 0
-reward_hit = -15
-reward_death = -10
+penalty_hit = -50
+penalty_death = -10
 
 observer_towers = []
 user_towers = []
@@ -286,7 +293,7 @@ while running:
                     else:
                         eb.step_reward += reward_moving_backwards
 
-                    # print("reward = {}".format(eb.step_reward))
+                    print("1. reward = {}".format(eb.step_reward))
                     for ot in observer_towers:
                         two_closest_bullets = e.find_two_closest_bullets(ot)
                         if random.random() < 0.05 and len(ot.bullets) <ot.max_bullets and stopwatch_timer_bullet >= stopwatcht_at_bullet:
@@ -305,11 +312,11 @@ while running:
                 trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ot
           
             for ed in smart_enemies:
-                #print("end step trainable = {}".format(ed.trainable))
+                # print("2. end step trainable = {}".format(ed.trainable))
                 if ed.trainable:
                     ed.rewards_history.append(ed.step_reward)
                     episode_reward += ed.step_reward
-                    #print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
+                    print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
                     
             
             #print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
@@ -321,6 +328,7 @@ while running:
                 for ed in smart_enemies:
                     if ed.trainable:
                         ed.learn(episode_reward)
+                        ed.running_reward = 0
                 print("Episode ENDED: episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
             
             

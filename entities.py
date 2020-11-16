@@ -46,8 +46,6 @@ class Vector:
         # print("mag= {}, th = {}".format(mag,th))
         return Vector(mag, th)
 
-
-
     def __str__(self):
         return "<{}, {}>".format(self.magnitude, self.th)
     
@@ -82,6 +80,10 @@ class PhysicsObject:
         self.u.from_cartesian(ux, uy)
         self.r.from_cartesian(x, y)
     
+    def to_state_vector(self):
+        r = list(self.r.to_cartesian())
+        u = list(self.u.to_cartesian())
+        return r + u
     def __str__(self):
         return "[r = {}, u={}]".format(self.r, self.u)
 
@@ -533,10 +535,7 @@ class Bullet:
                 and x < scr_attributes.width_meters
                 and x + self.r_width >0)
 
-        # return (self.y + self.r_height >0
-        #         and self.y < mscr_attributesyscreen.height
-        #         and self.x < scr_attributes.width
-        #         and self.x + self.r_width >0)
-
+    def to_state_vector(self):
+        return self.r_and_u.to_state_vector()
 
 

@@ -25,7 +25,7 @@ max_steps_per_episode = 100
 eps = np.finfo(np.float32).eps.item()  # Smallest number such that 1.0 + eps != 1.0
 
 # actor critic network 
-num_inputs = 4
+num_inputs = 1 + (2 + 2) + (2 + 2)
 #going forward or backward in the path.
 # 0 : going forward
 # 1 : going backwards
@@ -57,7 +57,21 @@ class eBrain:
 
     def take_an_action (self, tc_bullets):
 
-        state = (self.me_the_enemy.p, tc_bullets) #reset the environment
+        # SLOPPY (start)
+        bstates = []
+        bcnt = 0
+        for b in tc_bullets:
+            bstates = bstates + b.to_state_vector()
+            bcnt = bcnt + 1
+
+        while bcnt < 2:
+            bstates = bstates + [0, 0, 0, 0]
+            bcnt = bcnt + 1
+        # SLOPPY (end)
+
+        # reset the environment
+        state = [self.me_the_enemy.p] + bstates
+        # print("STATE IS", state)
         
         state = tf.convert_to_tensor(state)
         state = tf.expand_dims(state, 0)
@@ -138,6 +152,7 @@ class eBrain:
 
 
 def append_enemies (smart_enemies):
+    global no_trainable_enemy
     if random.random() < 0.05 and len(smart_enemies) < max_enemies:
         e = entities.Enemy((0, 0))
         trainable = False
@@ -296,7 +311,7 @@ while running:
                 episode_reward = 0
                 for ed in smart_enemies:
                     if ed.trainable:
-                        ed.learn()
+                        ed.learn(episode_reward)
             
             
 
@@ -317,7 +332,7 @@ while running:
                     b.display(screen)
 
             for e in smart_enemies:
-                e.display(screen)
+                e.me_the_enemy.display(screen)
             pygame.display.flip()
 
 

@@ -299,10 +299,10 @@ while running:
             trainable_not_deleted_ut = True
             trainable_not_deleted_ot = True           
             for ut in user_towers:        
-                (ut.bullets, trainable_not_deleted_ut) = active_bullets_after_collision_checks (ut, smart_enemies, trainable_enemy_exists)
+                (ut.bullets, trainable_not_deleted_ut) = active_bullets_after_collision_checks (ut, smart_enemies)
                 trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ut
             for ot in observer_towers:        
-                (ot.bullets, trainable_not_deleted_ot) = active_bullets_after_collision_checks (ot, smart_enemies, trainable_enemy_exists)                
+                (ot.bullets, trainable_not_deleted_ot) = active_bullets_after_collision_checks (ot, smart_enemies)                
                 trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ot
           
             for ed in smart_enemies:

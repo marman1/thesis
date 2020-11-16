@@ -92,7 +92,6 @@ class PaintableObject:
         pass
 
 
-
 class Enemy:
     def __init__(self, position):
         new_rV = Vector(0.0, 0.0)
@@ -109,7 +108,7 @@ class Enemy:
         
         self.p = -1
         self.health = 9 # if changed then the colour list must be extended as well
-        
+
    
     def display(self, screen):
         (x,y) = self.r_and_u.r.to_screen()
@@ -127,6 +126,7 @@ class Enemy:
 
         # p metres
         if p<0 :
+            p = 0
             return (0, 0)
 
         count_inner_set =0

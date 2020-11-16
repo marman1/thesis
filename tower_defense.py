@@ -14,7 +14,7 @@ LEFT  = 1
 screen = pygame.display.set_mode((myscreen.width, myscreen.height),pygame.DOUBLEBUF)
 pygame.display.set_caption('Tower Defence')
 
-no_trainable_enemy = True
+
 
 ############################################# A2C ###############################################
 ###############################################
@@ -25,7 +25,7 @@ max_steps_per_episode = 100
 eps = np.finfo(np.float32).eps.item()  # Smallest number such that 1.0 + eps != 1.0
 
 # actor critic network 
-num_inputs = 4
+num_inputs = 1
 #going forward or backward in the path.
 # 0 : going forward
 # 1 : going backwards
@@ -40,6 +40,10 @@ critic = layers.Dense(1)(common)
 model = keras.Model(inputs=inputs, outputs=[action, critic])
 ###############################################
 
+class State:
+    def __init__(self, p, bullets_list):
+        self.path_distance = p
+        self.two_closest_bullets = bullets_list
 
 class eBrain:
     def __init__(self, enemy,trainable ):
@@ -57,8 +61,9 @@ class eBrain:
 
     def take_an_action (self, tc_bullets):
 
-        state = (self.me_the_enemy.p, tc_bullets) #reset the environment
-        
+        #state = [self.me_the_enemy.p, tc_bullets] #reset the environment
+        #state = State(self.me_the_enemy.p, tc_bullets)
+        state = self.me_the_enemy.p
         state = tf.convert_to_tensor(state)
         state = tf.expand_dims(state, 0)
 
@@ -136,19 +141,22 @@ class eBrain:
 
 
 
+trainable_enemy_exists = True
 
-def append_enemies (smart_enemies):
+def append_enemies (smart_enemies, trainable_enemy_exists):
+    
+    trainable = False
     if random.random() < 0.05 and len(smart_enemies) < max_enemies:
         e = entities.Enemy((0, 0))
-        trainable = False
 
         # first enemy is trainable or there is no trainable agent
-        if len(smart_enemies) < 1 or no_trainable_enemy:
+        if not trainable_enemy_exists :
             trainable = True
-            no_trainable_enemy = False
+            
         
+        print("ADD NEW ENEMY trainable_enemy_exists= {}".format(trainable_enemy_exists))
         smart_enemies.append( eBrain(e,trainable) )
-    return
+    return trainable or trainable_enemy_exists
         
 
 
@@ -160,6 +168,8 @@ def active_bullets_after_collision_checks (tower, smart_enemies):
         if b.is_in_screen():
             new_bullets.append(b)
 
+    # the first enemy is always trainable
+    trainable_enemy_exists = True
     for b in tower.bullets:
         for eb in smart_enemies:
             e = eb.me_the_enemy
@@ -167,7 +177,10 @@ def active_bullets_after_collision_checks (tower, smart_enemies):
                 e.subtrack_health()
                 eb.step_reward += reward_hit
                 if (e.health<0):
-                    eb.step_reward += reward_death
+                    if eb.trainable:                          
+                        eb.step_reward += reward_death
+                        eb.learn(episode_reward)
+                        trainable_enemy_exists = False 
                     smart_enemies.remove(eb)
                     del eb
                 hit_bullets.append(b)
@@ -177,7 +190,7 @@ def active_bullets_after_collision_checks (tower, smart_enemies):
             new_bullets.remove(b)
             del b
 
-    return new_bullets
+    return new_bullets, trainable_enemy_exists 
 
 
 
@@ -190,11 +203,11 @@ stopwatch_at = 2 #secs
 stopwatch_timer = 0
 stopwatcht_at_bullet = 1 #sec
 stopwatch_timer_bullet = 0
-max_enemies = 10
+max_enemies = 1
 
 reward_reach_the_castle = 100
 reward_moving_forward = 10
-reward_moving_backwards = 2
+reward_moving_backwards = 0
 reward_hit = -15
 reward_death = -10
 
@@ -241,7 +254,9 @@ while running:
 
             #add a smart agent
             if stopwatch_timer >= stopwatch_at:
-                append_enemies(smart_enemies)
+                trainable_enemy_exists = append_enemies(smart_enemies, trainable_enemy_exists)
+                
+                print("trainable_enemy_exists= {}".format(trainable_enemy_exists))
                 stopwatch_timer = 0
 
             new_smart_enemies = []
@@ -256,11 +271,12 @@ while running:
                 action = eb.take_an_action(tc_bullets)
 
                 e.p += ((-1)** action) * e.r_and_u.u.magnitude *dt
+                print("action= {}, p = {}".format(action, e.p))
 
                 if e.p >= myscreen.MAX_DIST:
                     eb.step_reward += reward_reach_the_castle                    
                     if eb.trainable: 
-                        no_trainable_enemy = True 
+                        trainable_enemy_exists = False 
                         eb.learn(episode_reward)
                     del eb
                 else:
@@ -271,6 +287,7 @@ while running:
                     else:
                         eb.step_reward += reward_moving_backwards
 
+                    print("reward = {}".format(eb.step_reward))
                     for ot in observer_towers:
                         two_closest_bullets = e.find_two_closest_bullets(ot)
                         if random.random() < 0.05 and len(ot.bullets) <ot.max_bullets and stopwatch_timer_bullet >= stopwatcht_at_bullet:
@@ -279,24 +296,32 @@ while running:
 
             smart_enemies = new_smart_enemies 
            
+            trainable_not_deleted_ut = True
+            trainable_not_deleted_ot = True           
             for ut in user_towers:        
-                ut.bullets = active_bullets_after_collision_checks (ut, smart_enemies)
+                (ut.bullets, trainable_not_deleted_ut) = active_bullets_after_collision_checks (ut, smart_enemies, trainable_enemy_exists)
+                trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ut
             for ot in observer_towers:        
-                ot.bullets = active_bullets_after_collision_checks (ot, smart_enemies)                
-
+                (ot.bullets, trainable_not_deleted_ot) = active_bullets_after_collision_checks (ot, smart_enemies, trainable_enemy_exists)                
+                trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ot
           
             for ed in smart_enemies:
                 if ed.trainable:
                     ed.rewards_history.append(ed.step_reward)
                     episode_reward += ed.step_reward
+                    
+            
+            print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
 
             steps_count +=1
             if steps_count == max_steps_per_episode:
+                
+                print("Episode ENDED: episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
                 steps_count = 0
                 episode_reward = 0
                 for ed in smart_enemies:
                     if ed.trainable:
-                        ed.learn()
+                        ed.learn(episode_reward)
             
             
 
@@ -316,7 +341,8 @@ while running:
                 for b in ot.bullets:
                     b.display(screen)
 
-            for e in smart_enemies:
+            for eb in smart_enemies:
+                e = eb.me_the_enemy
                 e.display(screen)
             pygame.display.flip()
 

@@ -126,7 +126,7 @@ class Enemy:
 
         # p metres
         if p<0 :
-            p = 0
+            self.p = 0
             return (0, 0)
 
         count_inner_set =0

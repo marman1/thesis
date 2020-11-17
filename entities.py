@@ -90,8 +90,21 @@ class PhysicsObject:
 
 # 
 class PaintableObject:
-    def __init__(self, physobj, sprite):
-        pass
+    def __init__(self):
+        rV = Vector(0.0, 0.0)
+        rV.from_cartesian_from_screen(800, 640)
+        self.r = rV
+        self.colour = (255, 0, 38)
+        self.radius = 1.5
+        self.thickness = 23
+
+    def display(self, screen):
+        (x,y) = self.r.to_screen()
+        scr_attributes = Screen_attridutes()
+        to_sc = scr_attributes.factor_to_screen
+        pygame.draw.circle(screen, self.colour, (int(x), int(y)), int(self.radius*to_sc), self.thickness)
+        # pygame.draw.circle(screen, self.colour, (int(x), int(y)), int(self.radius*to_sc), self.thickness)
+       
 
 
 class Enemy:
@@ -198,7 +211,7 @@ class Enemy:
     def subtrack_health(self):
         self.health -= 1
 
-    def find_two_closest_bullets(self, t ):
+    def find_two_closest_bullets(self, bullets ):
         d_close = 5
         two_closest_bullets = [] # size 2, bullet-distance. Closest bullet is in [0], second closest in [1]
         (xe, ye) = self.r_and_u.r.to_cartesian()
@@ -207,7 +220,7 @@ class Enemy:
         fcb_d = 5.1
         second_closest_bullet = None
         scb_d = 5.1
-        for b in t.bullets:
+        for b in bullets:
             (xb, yb) = b.r_and_u.r.to_cartesian()
             d = math.sqrt( (xe-xb)**2 + (ye-yb)**2 )
             # print("{}. enemy = [{}, {}] bullet= [{}, {}], distance={}".format(count, xe, ye, xb, yb, d))
@@ -236,7 +249,9 @@ class Enemy:
         
         return two_closest_bullets
         
-       
+    def to_state_vector(self):
+        return self.r_and_u.to_state_vector()
+
 
 
 

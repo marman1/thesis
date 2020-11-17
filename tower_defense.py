@@ -31,11 +31,12 @@ num_inputs = 1 + (2 + 2) + (2 + 2)
 # 1 : going backwards
 num_actions = 2 
 num_hidden = 16
-num_steps = 10
+num_steps = 32
+num_lstm = 4
 
 inputs = layers.Input(shape=(num_steps, num_inputs,))
 common = layers.Dense(num_hidden, activation="relu")(inputs)
-lstm =  layers.LSTM(4, input_shape = (num_steps,num_hidden))(common)
+lstm =  layers.LSTM(num_lstm, input_shape = (num_steps,num_hidden))(common)
 action = layers.Dense(num_actions, activation="softmax")(lstm)
 critic = layers.Dense(1)(lstm)
 
@@ -75,9 +76,18 @@ class eBrain:
             bcnt = bcnt + 1
         # SLOPPY (end)
 
+        print("BSTATES: ", bstates, "BULLETS", tc_bullets)
+
+        # sloppy normalization
+        sw = myscreen.width_meters
+        sh = myscreen.height_meters
+        md = myscreen.MAX_DIST
+        
         # reset the environment
-        state0 = [self.me_the_enemy.p] + bstates
-        #print("STATE IS", state)
+        state0 = [self.me_the_enemy.p / md] + [f/sw for f in bstates]
+        print("STATE0: ", state0)
+        
+
         self.inp_hist.pop(0)
         self.inp_hist = self.inp_hist + [state0]
 

@@ -31,11 +31,14 @@ num_inputs =   (2 + 2) + (2 + 2) + (2 + 2)
 # 1 : going backwards
 num_actions = 2 
 num_hidden = 16
+num_steps = 32
+num_lstm = 4
 
-inputs = layers.Input(shape=(num_inputs,))
+inputs = layers.Input(shape=(num_steps, num_inputs,))
 common = layers.Dense(num_hidden, activation="relu")(inputs)
-action = layers.Dense(num_actions, activation="softmax")(common)
-critic = layers.Dense(1)(common)
+lstm =  layers.LSTM(num_lstm, input_shape = (num_steps,num_hidden))(common)
+action = layers.Dense(num_actions, activation="softmax")(lstm)
+critic = layers.Dense(1)(lstm)
 
 model = keras.Model(inputs=inputs, outputs=[action, critic])
 ###############################################
@@ -55,6 +58,10 @@ class eBrain:
         self.to_be_deleted = False
         self.step_reward = 0
 
+        self.inp_hist = []
+        for x in range(num_steps):
+            self.inp_hist.append([0 for x in range(num_inputs)])
+
     def take_an_action (self, tc_bullets):
 
          # SLOPPY (start)
@@ -70,10 +77,23 @@ class eBrain:
         # SLOPPY (end)
         estate = self.me_the_enemy.to_state_vector()
 
+        print("BSTATES: ", bstates, "BULLETS", tc_bullets)
+
+        # sloppy normalization
+        sw = myscreen.width_meters
+        sh = myscreen.height_meters
+        md = myscreen.MAX_DIST
+        
         # reset the environment
-        # state = [self.me_the_enemy.p] + estate + bstates
-        state =  estate + bstates
-        #print("STATE IS", state)
+        state0 = [self.me_the_enemy.p / md] + [f/sw for f in bstates]
+        print("STATE0: ", state0)
+        
+
+        self.inp_hist.pop(0)
+        self.inp_hist = self.inp_hist + [state0]
+
+        state = self.inp_hist
+
         
         state = tf.convert_to_tensor(state)
         state = tf.expand_dims(state, 0)
@@ -96,7 +116,6 @@ class eBrain:
     def learn(self, episode_reward):
         if not self.trainable:
             return
-        # print("learn CALLED")
         # Update running reward to check condition for solving
         self.running_reward = 0.05 * episode_reward + (1 - 0.05) * self.running_reward
 
@@ -191,7 +210,6 @@ def active_bullets_after_collision_checks (tower, smart_enemies, episode_reward,
 
                         ed.rewards_history.append(ed.step_reward)
                         episode_reward += ed.step_reward
-                        # print("learn CALLING")
                         eb.learn(episode_reward)
                         trainable_enemy_exists = False 
                         episode_reward = 0
@@ -222,10 +240,11 @@ stopwatch_timer_bullet = 0
 max_enemies = 1
 
 reward_reach_the_castle = 100
-reward_moving_forward = 2
+reward_moving_forward = 10
 reward_moving_backwards = 0
-penalty_hit = -10
-penalty_death = -10
+penalty_hit = -50
+penalty_death = -50
+
 
 observer_towers = []
 user_towers = []

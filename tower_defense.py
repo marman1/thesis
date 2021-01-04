@@ -21,11 +21,11 @@ pygame.display.set_caption('Tower Defence')
 #A2C: setting up the nn networks and parametres
 random.seed(42)
 gamma = 0.99  # Discount factor for past rewards
-max_steps_per_episode = 100
+max_steps_per_episode = 200
 eps = np.finfo(np.float32).eps.item()  # Smallest number such that 1.0 + eps != 1.0
 
 # actor critic network 
-num_inputs = 1 + (2 + 2) + (2 + 2)
+num_inputs =   (2 + 2) + (2 + 2) + (2 + 2)
 #going forward or backward in the path.
 # 0 : going forward
 # 1 : going backwards
@@ -75,6 +75,7 @@ class eBrain:
             bstates = bstates + [0, 0, 0, 0]
             bcnt = bcnt + 1
         # SLOPPY (end)
+        estate = self.me_the_enemy.to_state_vector()
 
         print("BSTATES: ", bstates, "BULLETS", tc_bullets)
 
@@ -92,6 +93,7 @@ class eBrain:
         self.inp_hist = self.inp_hist + [state0]
 
         state = self.inp_hist
+
         
         state = tf.convert_to_tensor(state)
         state = tf.expand_dims(state, 0)
@@ -231,9 +233,9 @@ enemies = []
 smart_enemies = []   
 clock=pygame.time.Clock()
 FRAMES_PER_SECOND=30
-stopwatch_at = 2 #secs
+stopwatch_at = 0 #secs
 stopwatch_timer = 0
-stopwatcht_at_bullet = 1 #sec
+stopwatcht_at_bullet = 2 #sec
 stopwatch_timer_bullet = 0
 max_enemies = 1
 
@@ -242,6 +244,7 @@ reward_moving_forward = 10
 reward_moving_backwards = 0
 penalty_hit = -50
 penalty_death = -50
+
 
 observer_towers = []
 user_towers = []
@@ -252,6 +255,7 @@ trainable_enemy_exists = False
 episode_reward = 0
 steps_count  = 0
 episodes_count = 0
+target = entities.PaintableObject()
 
 while running:  
     
@@ -300,9 +304,13 @@ while running:
             for eb in smart_enemies:
                 e = eb.me_the_enemy
                 tc_bullets = []
+                all_bullets = []
                 #find needs modification to find closet bullets from all towers
                 for ot in observer_towers:
-                        tc_bullets = e.find_two_closest_bullets(ot)
+                    all_bullets = all_bullets + ot.bullets
+                for ut in user_towers:
+                    all_bullets = all_bullets + ut.bullets
+                tc_bullets = e.find_two_closest_bullets(all_bullets)
 
                 action = eb.take_an_action(tc_bullets)
 
@@ -325,7 +333,6 @@ while running:
 
                     # print("1. reward = {}".format(eb.step_reward))
                     for ot in observer_towers:
-                        two_closest_bullets = e.find_two_closest_bullets(ot)
                         if random.random() < 0.05 and len(ot.bullets) <ot.max_bullets and stopwatch_timer_bullet >= stopwatcht_at_bullet:
                             ot.make_bullet(e)
                             stopwatch_timer_bullet = 0
@@ -387,6 +394,9 @@ while running:
             for eb in smart_enemies:
                 e = eb.me_the_enemy
                 e.display(screen)
+            
+            target.display(screen)
+
             pygame.display.flip()
 
 

@@ -335,7 +335,7 @@ class Screen_attridutes:
             # print("xs = {}, ys = {} | xm = {}, ym = {}".format( x,y,xc,yc))
 
          
-        pygame.draw.lines(screen, color, False, screen_check_points, 6 )
+        pygame.draw.lines(screen, color, False, screen_check_points, 15 )
 
 
     def is_tower_possition_allowed_simple(self, tower):

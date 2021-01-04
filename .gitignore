@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+average_rewards_per_episode/*
+average_rewards_per_step/*
+cumulative_average_rewards_per_episode/*
+cumulative_average_rewards_per_step/*
+*.csv 
+*.xls
+*.xlsx

@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+import sys
 
 myscreen = entities.Screen_attridutes()
 RIGHT = 3
@@ -25,7 +26,8 @@ max_steps_per_episode = 200
 eps = np.finfo(np.float32).eps.item()  # Smallest number such that 1.0 + eps != 1.0
 
 # actor critic network 
-num_inputs =   (2 + 2) + (2 + 2) + (2 + 2)
+#num_inputs =  1 + (2 + 2) + (2 + 2) + (2 + 2)
+num_inputs = 1 + (2 + 2) + (2 + 2)
 #going forward or backward in the path.
 # 0 : going forward
 # 1 : going backwards
@@ -47,7 +49,7 @@ model = keras.Model(inputs=inputs, outputs=[action, critic])
 class eBrain:
     def __init__(self, enemy,trainable ):
         self.optimizer = keras.optimizers.Adam(learning_rate=0.01)
-        self.huber_loss = keras.losses.MeanSquaredError()
+        self.mse_loss = keras.losses.MeanSquaredError()
         self.action_probs_history = []
         self.critic_value_history = []
         self.rewards_history = []
@@ -55,7 +57,6 @@ class eBrain:
         self.episode_count = 0
         self.me_the_enemy = enemy
         self.trainable = trainable
-        self.to_be_deleted = False
         self.step_reward = 0
 
         self.inp_hist = []
@@ -76,24 +77,29 @@ class eBrain:
             bcnt = bcnt + 1
         # SLOPPY (end)
         estate = self.me_the_enemy.to_state_vector()
-
+        
         print("BSTATES: ", bstates, "BULLETS", tc_bullets)
 
         # sloppy normalization
         sw = myscreen.width_meters
         sh = myscreen.height_meters
         md = myscreen.MAX_DIST
+
         
+
         # reset the environment
+        #state = [self.me_the_enemy.p] + estate + bstates
         state0 = [self.me_the_enemy.p / md] + [f/sw for f in bstates]
         print("STATE0: ", state0)
-        
+
 
         self.inp_hist.pop(0)
         self.inp_hist = self.inp_hist + [state0]
 
         state = self.inp_hist
 
+        # state =  estate + bstates
+        #print("STATE IS", state)
         
         state = tf.convert_to_tensor(state)
         state = tf.expand_dims(state, 0)
@@ -105,7 +111,7 @@ class eBrain:
             self.critic_value_history.append(critic_value[0, 0])
 
         # Sample action from action probability distribution
-        print (action_probs)
+        # print (action_probs)
         action = np.random.choice(num_actions, p=np.squeeze(action_probs))
         if self.trainable:
             self.action_probs_history.append(tf.math.log(action_probs[0, action]))
@@ -150,7 +156,7 @@ class eBrain:
             # The critic must be updated so that it predicts a better estimate of
             # the future rewards.
             critic_losses.append(
-                self.huber_loss(tf.expand_dims(value, 0), tf.expand_dims(ret, 0))
+                self.mse_loss(tf.expand_dims(value, 0), tf.expand_dims(ret, 0))
             )
 
         # Backpropagation
@@ -188,13 +194,14 @@ def append_enemies (smart_enemies, trainable_enemy_exists):
 def __del__ (self):
     pass
 
-def active_bullets_after_collision_checks (tower, smart_enemies, episode_reward, steps_count):
+def active_bullets_after_collision_checks (tower, smart_enemies, episode_reward, steps_count, c_episode_reward, c_step_reward):
     new_bullets = []
     hit_bullets = []
     for b in tower.bullets:
         b.move(dt)
         if b.is_in_screen():
             new_bullets.append(b)
+
 
     # the first enemy is always trainable
     trainable_enemy_exists = True
@@ -210,13 +217,22 @@ def active_bullets_after_collision_checks (tower, smart_enemies, episode_reward,
 
                         ed.rewards_history.append(ed.step_reward)
                         episode_reward += ed.step_reward
+                        
                         eb.learn(episode_reward)
                         trainable_enemy_exists = False 
+                        print("Episode {} ENDED: episode_reward= {}, steps_count = {}".format(episodes_count+1, episode_reward, steps_count))
+                       
+                        outf_av_r_per_e.write("{}, {}\n".format(episodes_count +1 , episode_reward))
+                        c_episode_reward = c_episode_reward + episode_reward
+                        outf_c_av_r_per_e.write("{}, {}\n".format(episodes_count +1 , c_episode_reward))
+                        
+                        outf_av_r_per_s.write("{}, {}\n".format(steps_count +1 , ed.step_reward))
+                        c_step_reward = c_step_reward + ed.step_reward
+                        outf_c_av_r_per_s.write("{}, {}\n".format(steps_count +1 , ed.step_reward))
                         episode_reward = 0
                         steps_count = 0
                         eb.trainable = False
                     smart_enemies.remove(eb)
-                    #del eb
                 hit_bullets.append(b)
     
     for b in hit_bullets:
@@ -224,7 +240,7 @@ def active_bullets_after_collision_checks (tower, smart_enemies, episode_reward,
             new_bullets.remove(b)
             #del b
 
-    return new_bullets, trainable_enemy_exists , episode_reward, steps_count
+    return new_bullets, trainable_enemy_exists , episode_reward, steps_count, c_episode_reward, c_step_reward
 
 
 
@@ -245,7 +261,6 @@ reward_moving_backwards = 0
 penalty_hit = -50
 penalty_death = -50
 
-
 observer_towers = []
 user_towers = []
 
@@ -257,7 +272,30 @@ steps_count  = 0
 episodes_count = 0
 target = entities.PaintableObject()
 
-while running:  
+c_episode_reward = 0
+c_step_reward = 0
+
+if len(sys.argv) != 2:
+    print("Need file name")
+    sys.exit(0)
+
+
+av_rew_file_name = "average_rewards_per_episode\ average_reward_run_per_episode" + sys.argv[1] + ".csv"
+outf_av_r_per_e = open(av_rew_file_name, 'w')
+
+
+c_av_rew_file_name = "cumulative_average_rewards_per_episode\ average_cummulative_reward_run_per_episode" + sys.argv[1] + ".csv"
+outf_c_av_r_per_e = open(c_av_rew_file_name, 'w')
+
+av_rew_per_step_file_name = "average_rewards_per_step\ average_reward_run_per_step_" + sys.argv[1] + ".csv"
+outf_av_r_per_s = open(av_rew_per_step_file_name, 'w')
+
+
+c_av_rew_per_step_file_name = "cumulative_average_rewards_per_step\ average_reward_run_per_step_" + sys.argv[1] + ".csv"
+outf_c_av_r_per_s = open(c_av_rew_per_step_file_name, 'w')
+
+
+while running :#and episodes_count < 50:  
     
     with tf.GradientTape() as tape:
             # env.render(); Adding this line would show the attempts
@@ -342,29 +380,37 @@ while running:
             trainable_not_deleted_ut = True
             trainable_not_deleted_ot = True           
             for ut in user_towers:        
-                (ut.bullets, trainable_not_deleted_ut, episode_reward, steps_count) = active_bullets_after_collision_checks (ut, smart_enemies, episode_reward, steps_count)
+                (ut.bullets, trainable_not_deleted_ut, episode_reward, steps_count, c_episode_reward, c_step_reward) = active_bullets_after_collision_checks (ut, smart_enemies, episode_reward, steps_count, c_episode_reward, c_step_reward)
                 trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ut
             for ot in observer_towers:        
-                (ot.bullets, trainable_not_deleted_ot, episode_reward, steps_count) = active_bullets_after_collision_checks (ot, smart_enemies, episode_reward, steps_count)              
+                (ot.bullets, trainable_not_deleted_ot, episode_reward, steps_count, c_episode_reward, c_step_reward) = active_bullets_after_collision_checks (ot, smart_enemies, episode_reward, steps_count, c_episode_reward, c_step_reward)              
                 trainable_enemy_exists = trainable_enemy_exists and trainable_not_deleted_ot
           
             for ed in smart_enemies:
                 # print("2. end step trainable = {}".format(ed.trainable))
                 if ed.trainable:
                     ed.rewards_history.append(ed.step_reward)
-                    episode_reward = episode_reward + ed.step_reward
+                    episode_reward = episode_reward + ed.step_reward                    
+                    outf_av_r_per_s.write("{}, {}\n".format(steps_count +1 , ed.step_reward))
+                    c_step_reward = c_step_reward + ed.step_reward
+                    outf_c_av_r_per_s.write("{}, {}\n".format(steps_count +1 , c_step_reward))
                     # print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
                     
             
             #print("episode_reward= {}, steps_count = {}".format(episode_reward, steps_count))
 
             steps_count +=1
-            if steps_count == max_steps_per_episode:    
+            
+            if steps_count == max_steps_per_episode :    
                 for ed in smart_enemies:
                     if ed.trainable:
                         ed.learn(episode_reward)                
-                
-                print("Episode {} ENDED: episode_reward= {}, steps_count = {}".format(episodes_count, episode_reward, steps_count))
+                        print("Episode {} ENDED: episode_reward= {}, steps_count = {}".format(episodes_count+1, episode_reward, steps_count))
+                        
+                        outf_av_r_per_e.write("{}, {}\n".format(episodes_count +1 , episode_reward))
+                        c_episode_reward = c_episode_reward + episode_reward
+                        outf_c_av_r_per_e.write("{}, {}\n".format(episodes_count +1 , c_episode_reward))
+
                 episode_reward = 0            
                 steps_count = 0
                 episodes_count += 1
@@ -373,7 +419,7 @@ while running:
             for ed in smart_enemies:
                     if ed.trainable:
                         ed.step_reward = 0
-            
+             
 
                 
             
@@ -401,7 +447,9 @@ while running:
 
 
 
-  
+outf_av_r_per_e.close()
+outf_c_av_r_per_e.close() 
+outf_av_r_per_s.close() 
+outf_c_av_r_per_s.close() 
 
 pygame.quit()
-

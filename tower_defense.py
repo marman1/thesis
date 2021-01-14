@@ -19,6 +19,7 @@ pygame.display.set_caption('Tower Defence')
 
 ############################################# A2C ###############################################
 ###############################################
+#test 
 #A2C: setting up the nn networks and parametres
 random.seed(42)
 gamma = 0.99  # Discount factor for past rewards
